@@ -1,7 +1,8 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 #******************************************************************************
-# Copyright (C) 2015 Hitoshi Yamauchi
+# Copyright (C) 2015-2016 Hitoshi Yamauchi
+#               2016      Uli Köhler
 # New BSD License.
 #******************************************************************************
 # \file
