@@ -81,7 +81,7 @@ def get_metadata_string(metadata_dict):
     for key, value in metadata_dict.items():
         metadata_list.append('"{0}: {1}\\n"'.format(key, value))
     metadata_list.sort()
-    metadata_str = '\n'.join(metadata_list)
+    metadata_str = '\n'.join(metadata_list) + '\n'
 
     return metadata_str
 
