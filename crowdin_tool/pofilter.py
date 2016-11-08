@@ -27,7 +27,7 @@
 #    Extract non-translated entries WITHOUT context line
 #       ./pofilter.py --no-context sample.po sample.po.txt
 #
-import argparse, sys, re, codecs
+import argparse, sys, re, codecs, os
 import polib
 
 def id_to_str(entry):
@@ -66,13 +66,27 @@ map_tools = {
     "none": lambda a: a
 }
 
+
 def remove_context_from_entry(entry):
     entry.comment = None
     entry.tcomment = None
     entry.occurrences = []
     return entry
 
-def find_untranslated_entries(infile, remove_context=False, tool="id_to_str"):
+
+def get_metadata_string(metadata_dict):
+    """get metadata strings
+    """
+    metadata_list = list()
+    for key, value in metadata_dict.items():
+        metadata_list.append('"{0}: {1}\\n"'.format(key, value))
+    metadata_list.sort()
+    metadata_str = '\n'.join(metadata_list)
+
+    return metadata_str
+
+
+def find_untranslated_entries(poentries, remove_context=False, tool="id_to_str"):
     """
     Read a PO file and find all untranslated entries.
     Note that polib's untranslated_entries() doesn't seem to work
@@ -80,7 +94,7 @@ def find_untranslated_entries(infile, remove_context=False, tool="id_to_str"):
 
     Returns a string containing the resulting PO entries
     """
-    poentries = polib.pofile(infile)
+
     # Find untranslated strings
     untranslated = filter(filter_tools[tool], poentries)
     # Replace msgstr by msgid (because it would be empty otherwise due to POLib)
@@ -102,19 +116,34 @@ def main():
     parser.add_argument("outfile", type=str, default="-", nargs="?",
                         help="Output filename (- is stdout)")
 
+    parser.add_argument("--metadata", choices=['on', 'off'], default="on",
+                        help="Output metadata")
+
     parser.add_argument("--tool", choices=['id_to_str', 'same', 'differ', 'none'], default="id_to_str",
                         help="tools. id_to_str: copy msgid to msgstr. same: msgid == msgstr. differ: msgid != mgsstr")
-
     parser.add_argument("-n", "--no-context", action="store_true",
                         help="Remove context from all strings")
 
+    parser.add_argument("--force_override", action='store_true',
+                        help="Even outfile is found, override the output file.")
+
     args = parser.parse_args()
 
-    postr = find_untranslated_entries(args.infile, args.no_context, args.tool)
+    # load pofile
+    poentries = polib.pofile(args.infile, encoding='utf-8')
+
+    postr = ''
+    if (args.metadata == 'on'):
+        postr = get_metadata_string(poentries.metadata)
+
+    postr += find_untranslated_entries(poentries, args.no_context, args.tool)
     # Write or print to stdout
     if args.outfile == "-":
         print(postr)
     else:
+        if (os.path.isfile(args.outfile) and (args.force_override == False)):
+            raise RuntimeError('output file exists. If you want to force override, use --force_override option.')
+
         with open(args.outfile, encoding='utf-8', mode='w') as outfile:
             outfile.write(postr)
 
