@@ -7,6 +7,10 @@ from xml.etree.ElementTree import fromstring
 folder = '.\\'
 
 def xliff_to_json(filename):
+    """ Converts a single XLIFF file to a JSON equivalent.
+    Removes some excess data such as notes (context).
+    Requires a lot of memory to complete as files are large.
+    """
     filename = folder + filename
     with codecs.open(filename, 'r', 'utf-8') as fin:
         xliff = fin.read()
