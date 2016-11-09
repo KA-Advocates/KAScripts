@@ -275,7 +275,7 @@ def work_xliffs():
 
 
 def save_graphies(graphies):
-    """ Save report toa file.
+    """ Save report to a file.
     """
     with open( "C:\\Users\\Igor\\Downloads\\Khan\\khan-sr-graphies\\report.txt", 'w+', encoding='utf-8' ) as out_file:
         lines = map(lambda x: x + "\n", graphies)
