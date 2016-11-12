@@ -31,10 +31,10 @@ class Extract_same(object):
         dir_list = []
         while (True):
             (base, tail) = os.path.split(path)
-            if (base == path):       # absolute path
+            if (base == path):   # absolute path
                 dir_list.append(base)
                 break
-            elif (tail == path):    # relative path
+            elif (tail == path): # relative path
                 dir_list.append(tail)
                 break
             else:
@@ -97,7 +97,9 @@ class Extract_same(object):
             return
 
         try:
-            com_list = [self.__pofilter_path, '-n',
+            com_list = [self.__pofilter_path,
+                        '-n',
+                        '--tool', 'same',
                         src_fpath,
                         dst_fpath]
 
