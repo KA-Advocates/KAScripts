@@ -32,8 +32,8 @@ import polib
 
 def id_to_str(entry):
     """filter() function to determine if a given entry is untranslated"""
-    # Msgstr not empty OR both msgid and msgstr empty
     return (not entry.msgstr and entry.msgid)
+
 
 def same(entry):
     """filter() function to determine if a given msgid is the same as the msgstr"""
@@ -52,12 +52,14 @@ def replace_msgstr_by_msgid(entry):
         "comment": entry.tcomment, # Fix comment not being written to output file
     })
 
+
 filter_tools = {
     "id_to_str": id_to_str,
     "same": same,
     "differ": differ,
     "none": lambda _: True
 }
+
 
 map_tools = {
     "id_to_str": replace_msgstr_by_msgid,
@@ -75,13 +77,14 @@ def remove_context_from_entry(entry):
 
 
 def get_metadata_string(metadata_dict):
-    """get metadata strings
+    """get metadata strings. ordered_metadata() returns list of touple and using this
+    or ordered_metadata are not so much difference.
     """
     metadata_list = list()
     for key, value in metadata_dict.items():
         metadata_list.append('"{0}: {1}\\n"'.format(key, value))
     metadata_list.sort()
-    metadata_str = '\n'.join(metadata_list) + '\n'
+    metadata_str ='msgid ""\nmsgstr ""\n' + '\n'.join(metadata_list) + '\n# end metadata\n\n'
 
     return metadata_str
 
@@ -94,19 +97,36 @@ def find_untranslated_entries(poentries, remove_context=False, tool="id_to_str")
 
     Returns a string containing the resulting PO entries
     """
-
     # Find untranslated strings
     untranslated = filter(filter_tools[tool], poentries)
+
     # Replace msgstr by msgid (because it would be empty otherwise due to POLib)
     export_entries = list(map(map_tools[tool], untranslated))
+
     # Remove context if enabled
     if remove_context:
         export_entries = list(map(remove_context_from_entry, export_entries))
+
     # Create a new PO with the entries
     result = polib.POFile()
     [result.append(entry) for entry in export_entries]
+
     # Generate PO string
-    return result.__unicode__()
+    retstr = result.__unicode__()
+
+    ret_lines = retstr.splitlines()
+
+    # Removed metadata string. I could not find to remove metadata in the polib code.
+    #  only metadata case ... return empty string
+    if (len(ret_lines) <= 3):
+        return ''
+    #  non metadata found
+    if ((ret_lines[0] == '#') and         (ret_lines[1] == 'msgid ""') and \
+        (ret_lines[2] == 'msgstr ""') and (ret_lines[3] == '')):
+        retstr = '\n'.join(ret_lines[4:])
+
+    return retstr
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -116,8 +136,8 @@ def main():
     parser.add_argument("outfile", type=str, default="-", nargs="?",
                         help="Output filename (- is stdout)")
 
-    parser.add_argument("--metadata", choices=['on', 'off'], default="on",
-                        help="Output metadata")
+    parser.add_argument("--metadata", choices=['always', 'add', 'off'], default="add",
+                        help="Output metadata. If always, always output even body is empty. add will add when body is not empty.")
 
     parser.add_argument("--tool", choices=['id_to_str', 'same', 'differ', 'none'], default="id_to_str",
                         help="tools. id_to_str: copy msgid to msgstr. same: msgid == msgstr. differ: msgid != mgsstr")
@@ -132,21 +152,32 @@ def main():
     # load pofile
     poentries = polib.pofile(args.infile, encoding='utf-8')
 
-    postr = ''
-    if (args.metadata == 'on'):
-        postr = get_metadata_string(poentries.metadata)
+    body_str = find_untranslated_entries(poentries, args.no_context, args.tool)
 
-    postr += find_untranslated_entries(poentries, args.no_context, args.tool)
+    postr = ''
+    if (args.metadata == 'always'):
+        postr = get_metadata_string(poentries.metadata) + body_str
+    elif (args.metadata == 'add'):
+        if (len(body_str) > 0):
+            postr = get_metadata_string(poentries.metadata) + body_str
+        else:
+            # no output since body_str is empty
+            pass
+    else:
+        postr = body_str
+
+
     # Write or print to stdout
     if args.outfile == "-":
         print(postr)
     else:
         if (os.path.isfile(args.outfile) and (args.force_override == False)):
             raise RuntimeError('output file exists. If you want to force override, use --force_override option.')
-
-        with open(args.outfile, encoding='utf-8', mode='w') as outfile:
-            outfile.write(postr)
-
+        if (len(postr) > 0):
+            with open(args.outfile, encoding='utf-8', mode='w') as outfile:
+                outfile.write(postr)
+        else:
+            print('# empty result file, skip to output {0}'.format(args.outfile))
 
 if __name__ == "__main__":
     try:
