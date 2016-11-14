@@ -98,8 +98,9 @@ class Extract_same(object):
 
         try:
             com_list = [self.__pofilter_path,
-                        '-n',
-                        '--tool', 'same',
+                        '--no-context',
+                        '--metadata',   'add',
+                        '--tool',       'same',
                         src_fpath,
                         dst_fpath]
 
@@ -165,14 +166,6 @@ def main():
 
     parser.add_argument("--dry_run", choices=['on', 'off'], default="off",
                         help="when on, not process the file, but show the command.")
-
-    # parser.add_argument("--tool", choices=['id_to_str', 'same', 'differ', 'none'], default="id_to_str",
-    #                     help="tools. id_to_str: copy msgid to msgstr. same: msgid == msgstr. differ: msgid != mgsstr")
-    # parser.add_argument("-n", "--no-context", action="store_true",
-    #                     help="Remove context from all strings")
-
-    # parser.add_argument("--force_override", action='store_true',
-    #                     help="Even outfile is found, override the output file.")
 
     args = parser.parse_args()
 

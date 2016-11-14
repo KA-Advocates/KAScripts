@@ -77,14 +77,11 @@ def remove_context_from_entry(entry):
 
 
 def get_metadata_string(metadata_dict):
-    """get metadata strings. ordered_metadata() returns list of touple and using this
-    or ordered_metadata are not so much difference.
+    """get metadata strings via POFile()
     """
-    metadata_list = list()
-    for key, value in metadata_dict.items():
-        metadata_list.append('"{0}: {1}\\n"'.format(key, value))
-    metadata_list.sort()
-    metadata_str ='msgid ""\nmsgstr ""\n' + '\n'.join(metadata_list) + '\n# end metadata\n\n'
+    po = polib.POFile()
+    po.metadata = metadata_dict
+    metadata_str = po.__unicode__() + '\n\n'
 
     return metadata_str
 
