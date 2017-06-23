@@ -84,7 +84,7 @@ class Poresub(object):
             assert(len(i) == 2)
             str_content = re.sub(i[0], i[1], str_content, re.MULTILINE)
             # if (instr != str_content):
-            #     print('# (pat,repl) = ({0},{1}), result: {2})'.format(pat, repl, str_content))
+            #    print('# (pat,repl) = ({0},{1}), result: {2})'.format(i[0], i[1], str_content))
 
         return str_content
 
@@ -142,7 +142,7 @@ class Poresub(object):
         else:
             if (os.path.isfile(self.__out_file) and (self.__force_override == False)):
                 # raise RuntimeError('output file exists. If you want to force override, use --force_override option.')
-                raise RuntimeError('output file exists.')
+                raise RuntimeError('output file [{0}] exists.'.format(self.__out_file))
 
             if (len(po_out) > 0):
                 with open(self.__out_file, encoding='utf-8', mode='w') as outfile:
@@ -227,7 +227,7 @@ def poresub_main():
 
     opt_dict = {
         'in_file':        args.in_file[0],  # nargs gives a list, but we need only one
-        'out_file':       args.out_file[0], # nargs gives a list, but we need only one
+        'out_file':       args.out_file,
         'key_type':       args.key_type,
         'pattern_list':   pattern_list,
         'wrapwidth':      args.wrapwidth,
