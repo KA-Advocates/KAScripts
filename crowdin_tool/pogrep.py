@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 #******************************************************************************
-# Copyright (C) 2017 Hitoshi Yamauchi
+# Copyright (C) 2017-2018 Hitoshi Yamauchi
 # New BSD License.
 #******************************************************************************
 # \file
@@ -15,14 +15,16 @@
 #    Grep on msgid with keywords 'this' for file _other_.po
 #       ./pogrep.py --key-type msgid -e this _other_.po
 #
+#    Get exercise decimals-in-words for file learn.math.cc-fourth-grade-math.exercises-ja.po
+#       ./pogrep.py --key-type tcomment -e decimals-in-words learn.math.cc-fourth-grade-math.exercises-ja.po
 #
 import argparse, sys, re, codecs, os
 import polib
 
 class Pogrep(object):
     """grep on pofile.
-    Search depends on keytype: msgid, msgstr
-    Output matching entry
+    Search depends on keytype: msgid, msgstr, comment, tcomment
+    Out put matching entry
     """
 
     def __init__(self, opt_dict):
@@ -35,7 +37,7 @@ class Pogrep(object):
         self.__key_type   = self.__opt_dict['key_type']
         if (self.__key_type == None):
             raise RuntimeError('No key type specified')
-        valid_key_type = ['msgid', 'msgstr']
+        valid_key_type = ['msgid', 'msgstr', 'comment', 'tcomment']
         if (self.__key_type not in valid_key_type):
             raise RuntimeError('Invalid key_type')
         self.__verbose_out('# key_type: {0}'.format(self.__key_type))
@@ -57,14 +59,22 @@ class Pogrep(object):
         self.__verbose_out('# match true (!invert_match): {0}'.format(self.__match_true))
 
         # in_file
-        self.__in_file_list = self.__opt_dict['in_file']
-        if (self.__in_file_list == None):
+        self.__in_file = self.__opt_dict['in_file']
+        if (self.__in_file == None):
             raise RuntimeError('No input file')
 
-        self.__verbose_out('# in_file:  {0}'.format(' '.join(self.__in_file_list)))
+        self.__verbose_out('# in_file:  {0}'.format(self.__in_file))
 
-        # Switch stdout codecs to utf-8
-        sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+        # out_file
+        self.__out_file = self.__opt_dict['out_file']
+        if (self.__out_file == None):
+            raise RuntimeError('No output file')
+        self.__out_file_obj = None
+
+        self.__verbose_out('# out_file: {0}'.format(self.__out_file))
+
+        # FIXME
+        self.__force_override = False
 
 
     def __verbose_out(self, mes):
@@ -81,6 +91,10 @@ class Pogrep(object):
             check_str = ent.msgid
         elif (self.__key_type == 'msgstr'):
             check_str = ent.msgstr
+        elif (self.__key_type == 'comment'):
+            check_str = ent.comment
+        elif (self.__key_type == 'tcomment'):
+            check_str = ent.tcomment
         else:
             raise RuntimeError('Unknown key_type')
 
@@ -91,12 +105,17 @@ class Pogrep(object):
 
         return self.__match_true == is_found
 
-    def __process_one_file(self, infile):
+    def __out(self, out_str):
+        """output out_str"""
+        if (self.__out_file_obj != None):
+            self.__out_file_obj.write(out_str + '\n')
+        else:
+            print(out_str + '\n')
+
+
+    def __process_po_obj(self, po_in):
         """process one file
         """
-        self.__verbose_out('# Loading {0}'.format(infile))
-        po_in = polib.pofile(infile, encoding='utf-8')
-        self.__verbose_out('# loading done')
 
         # Entry members (see the polib documentation, actually source
         # code of POEntry)
@@ -113,16 +132,28 @@ class Pogrep(object):
         # Then, msgid, msgstr, (msgcxt)
         for ent in po_in:
             if (self.__is_match(ent) == True):
-                print(ent)
+                self.__out(str(ent))
             else:
                 # print('# no match')
                 pass
 
+
     def run(self):
         """run the po file grep"""
 
-        for f in self.__in_file_list:
-            self.__process_one_file(f)
+        self.__verbose_out('# Loading {0}'.format(self.__in_file))
+        po_in = polib.pofile(self.__in_file, encoding='utf-8')
+        self.__verbose_out('# loading done')
+
+
+        if (self.__out_file != "-"):
+            if (os.path.isfile(self.__out_file) and (self.__force_override == False)):
+                raise RuntimeError('output file [{0}] exists.'.format(self.__out_file))
+            with open(self.__out_file, encoding='utf-8', mode='w') as out_file:
+                self.__out_file_obj = out_file
+                self.__process_po_obj(po_in)
+        else:
+            self.__process_po_obj(po_in)
 
 
     @staticmethod
@@ -130,7 +161,7 @@ class Pogrep(object):
         """get the version number list
         [major, minor, maintainance]
         """
-        return [0, 1, 0]
+        return [0, 2, 0]
 
     @staticmethod
     def get_version_string():
@@ -139,16 +170,22 @@ class Pogrep(object):
 
         return '''pogrep.py {0}.{1}.{2}
 New BSD License.
-Copyright (C) 2017 Hitoshi Yamauchi
+Copyright (C) 2017-2018 Hitoshi Yamauchi
 '''.format(vl[0], vl[1], vl[2])
 
 
 
-def main():
+def pogrep_main():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("in_file", type=str, nargs=1,
+                        help="Input filenames.")
+
+    parser.add_argument("out_file", type=str, default="-", nargs="?",
+                        help="Output filename (- is stdout)")
+
     parser.add_argument("--key-type", type=str,
-                        choices=['msgid', 'msgstr'], default='msgid',
+                        choices=['msgid', 'msgstr', 'comment', 'tcomment'], default='msgid',
                         help="grep this key type in a po file")
 
     # nargs tells how many args should be consumed, this is needed when
@@ -166,12 +203,6 @@ def main():
                         help="Ignore the case in both the regexp match string "
                         "and the input file.")
 
-    parser.add_argument("in_file", type=str, nargs='*',
-                        help="Input filenames.")
-
-    parser.add_argument("--out-file", type=str, default="-",
-                        help="Output filename. The default is '-'. '-' is stdout")
-
     parser.add_argument("--force_override", action='store', default='0',
                         help="Even outfile is found, override the output file.")
 
@@ -183,6 +214,9 @@ def main():
 
     args = parser.parse_args()
 
+    # Switch stdout codecs to utf-8
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+
     if (args.version == True):
         sys.stderr.write(Pogrep.get_version_string())
         sys.exit(1)
@@ -191,12 +225,12 @@ def main():
         raise RuntimeError('-e/--regexp option was not specified.')
 
     opt_dict = {
+        'in_file':        args.in_file[0], # nargs gives a list, but we need one
+        'out_file':       args.out_file,
         'key_type':       args.key_type,
-        'regexp':         args.regexp[0], # nargs gives a list, but we need one
+        'regexp':         args.regexp[0],  # nargs gives a list, but we need one
         'invert_match':   args.invert_match,
         'ignore_case':    args.ignore_case,
-        'in_file':        args.in_file,
-        'out_file':       args.out_file,
         'force_override': args.force_override,
         'verbose':        args.verbose,
     }
@@ -207,7 +241,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        pogrep_main()
         sys.exit(0)
     except RuntimeError as err:
         print('Runtime Error: {0}'.format(err))
